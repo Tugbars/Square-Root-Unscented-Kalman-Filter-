@@ -1,0 +1,12 @@
+# Exclude Jupyter notebooks from GitHub language statistics
+*.ipynb linguist-documentation
+
+# Ensure C is recognized as main language
+*.c linguist-detectable=true
+*.h linguist-detectable=true
+
+# Exclude vendored/generated files
+*.dll linguist-vendored
+*.lib linguist-vendored
+*.so linguist-vendored
+*.dylib linguist-vendored
