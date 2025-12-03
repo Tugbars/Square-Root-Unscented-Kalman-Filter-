@@ -22,52 +22,59 @@ Usage:
 
 import ctypes
 import numpy as np
+import os
+import sys
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-import platform
 
 # =============================================================================
-# Library Loading
+# Windows MKL DLL paths (must be set BEFORE loading the library)
 # =============================================================================
 
-def _find_library() -> ctypes.CDLL:
-    """Find and load the shared library."""
-    
-    system = platform.system()
-    
-    if system == "Windows":
-        lib_names = ["student_t_srukf.dll", "libstudent_t_srukf.dll"]
-    elif system == "Darwin":
-        lib_names = ["libstudent_t_srukf.dylib"]
-    else:
-        lib_names = ["libstudent_t_srukf.so"]
-    
-    # Search paths
+if sys.platform == "win32":
+    mkl_paths = [
+        r"C:\Program Files (x86)\Intel\oneAPI\mkl\2025.3\bin",
+        r"C:\Program Files (x86)\Intel\oneAPI\mkl\latest\bin",
+        r"C:\Program Files (x86)\Intel\oneAPI\compiler\2025.3\bin",
+        r"C:\Program Files (x86)\Intel\oneAPI\compiler\latest\bin",
+    ]
+    for p in mkl_paths:
+        if os.path.exists(p):
+            os.add_dll_directory(p)
+
+# =============================================================================
+# Load shared library
+# =============================================================================
+
+def _load_library():
+    """Find and load the SRUKF shared library."""
     search_paths = [
-        Path("."),
-        Path("./build"),
-        Path("./build/Release"),
-        Path("./build/Debug"),
-        Path(__file__).parent,
-        Path(__file__).parent / "build",
-        Path(__file__).parent / "build" / "Release",
-        Path(__file__).parent / "build" / "Debug",
+        Path(__file__).parent / "student_t_srukf.dll",
+        Path(__file__).parent / "libstudent_t_srukf.dll",
+        Path(__file__).parent / "student_t_srukf.so",
+        Path(__file__).parent / "libstudent_t_srukf.so",
+        Path(".") / "student_t_srukf.dll",
+        Path(".") / "libstudent_t_srukf.dll",
+        Path("./build/Release") / "student_t_srukf.dll",
+        Path("./build/Debug") / "student_t_srukf.dll",
+        "student_t_srukf.dll",
+        "libstudent_t_srukf.so",
     ]
     
     for path in search_paths:
-        for name in lib_names:
-            lib_path = path / name
-            if lib_path.exists():
-                return ctypes.CDLL(str(lib_path))
+        try:
+            return ctypes.CDLL(str(path))
+        except OSError:
+            continue
     
-    raise OSError(
-        f"Could not find library. Searched for {lib_names} in {search_paths}. "
-        "Make sure you've built the library with CMake."
+    raise RuntimeError(
+        "Could not load student_t_srukf.dll/.so. Build it with:\n"
+        "  cmake --build build --target student_t_srukf_shared --config Release\n"
+        "Then copy to this directory or add to PATH."
     )
 
-# Load library
-_lib = _find_library()
+_lib = _load_library()
 
 # =============================================================================
 # C Function Signatures
@@ -75,6 +82,7 @@ _lib = _find_library()
 
 # Pointer types
 c_double_p = ctypes.POINTER(ctypes.c_double)
+c_int_p = ctypes.POINTER(ctypes.c_int)
 c_void_p = ctypes.c_void_p
 
 def _setup_signatures():
